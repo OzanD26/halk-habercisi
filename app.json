@@ -20,10 +20,24 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.ozanfd.halkhabercisi",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+       
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4ed8f434-1290-4216-9528-ef383594aa7f"
+      }
+    },
+    "plugins": [
+      "expo-video"
+    ]
   }
 }

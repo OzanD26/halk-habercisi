@@ -1,11 +1,13 @@
 import React from 'react';
-import { SafeAreaView } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ReportScreen from './screens/ReportScreen';
+import { getStorage, ref, uploadBytes } from 'firebase/storage';
+
 
 export default function App() {
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaProvider>
       <ReportScreen />
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
