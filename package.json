@@ -8,9 +8,16 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "prepare": "husky install",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
     "test": "echo \"✅ Test çalışıyor (şimdilik sahte)!\""
   },
   "dependencies": {
+    "@expo/vector-icons": "^14.1.0",
+    "@react-navigation/bottom-tabs": "^7.4.6",
+    "@react-navigation/native": "^7.1.17",
+    "base-64": "^1.0.0",
     "base64-arraybuffer": "^1.0.2",
     "expo": "~53.0.20",
     "expo-av": "~15.1.7",
@@ -20,21 +27,39 @@
     "expo-location": "~18.1.6",
     "expo-status-bar": "~2.2.3",
     "expo-video": "~2.2.2",
-    "firebase": "^9.22.1",
+    "firebase": "^11",
     "react": "19.0.0",
     "react-native": "0.79.5",
-    "react-native-safe-area-context": "^5.5.2",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-get-random-values": "^1.11.0",
+    "react-native-safe-area-context": "^5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-url-polyfill": "^2.0.0",
     "react-native-uuid": "^2.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.1.4"
+    "lint-staged": "^16.1.4",
+    "eslint": "^9.9.0",
+    "prettier": "^3.3.3"
   },
   "lint-staged": {
-    "**/*.js": [
-      "eslint --fix",
-      "git add"
+    "screens/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "components/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "utils/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "App.js": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
     ]
   },
   "private": true
