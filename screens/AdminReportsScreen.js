@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, Image, TouchableOpacity, ActivityIndicator,
-  Linking, StyleSheet, RefreshControl, Alert, FlatList, useWindowDimensions, Modal
+  Linking, StyleSheet, RefreshControl, Alert, FlatList, Modal, useWindowDimensions
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Video } from 'expo-av';
@@ -11,7 +11,24 @@ import {
   updateDoc, deleteDoc, where,
 } from 'firebase/firestore';
 import { ref as sRef, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../firebaseConfig'; // auth/ensureAuthReady gerekmiyor (read/update/delete herkese açık)
+import { db, storage } from '../firebaseConfig';
+
+// --- Demirören koyu tema paleti (App & NewsScreen ile uyumlu)
+const colors = {
+  bg: '#0E0F12',
+  card: '#16181D',
+  cardMuted: '#1A1C22',
+  border: '#2A2D34',
+  outline: '#2F333B',
+  text: '#E6E8EA',
+  textMuted: '#A5ABB3',
+  primary: '#E30613',
+  ok: '#10B981',
+  warn: '#F59E0B',
+  danger: '#EF4444',
+  info: '#3B82F6',
+  placeholder: '#0F1116',
+};
 
 const TABS = [
   { key: 'all', label: 'Tümü' },
@@ -63,9 +80,7 @@ export default function AdminReportsScreen({ onBack }) {
         ? query(base, where('approved', '==', true), orderBy('createdAt', 'desc'))
         : query(base, where('approved', '==', true));
     }
-    return mode === 'ordered'
-      ? query(base, orderBy('createdAt', 'desc'))
-      : base;
+    return mode === 'ordered' ? query(base, orderBy('createdAt', 'desc')) : base;
   }, [tab]);
 
   const attachListener = useCallback(async (mode = 'ordered') => {
@@ -131,7 +146,6 @@ export default function AdminReportsScreen({ onBack }) {
     attachListener('ordered');
   }, [attachListener]);
 
-  // Test modu: herkes onay/sil yapabilir (rules'ta allow update/delete: if true;)
   const approveToggle = async (id, approved) => {
     try {
       await updateDoc(doc(db, 'reports', id), { approved: !approved });
@@ -148,7 +162,6 @@ export default function AdminReportsScreen({ onBack }) {
         style: 'destructive',
         onPress: async () => {
           try {
-            // Storage silme denemesi (izin yoksa hata yakalanır ve Firestore yine silinir)
             if (storagePath) {
               try {
                 await deleteObject(sRef(storage, storagePath));
@@ -226,16 +239,16 @@ export default function AdminReportsScreen({ onBack }) {
 
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: item.approved ? '#E67E22' : 'green' }]}
+            style={[styles.btn, { backgroundColor: item.approved ? '#E67E22' : colors.ok }]}
             onPress={() => approveToggle(item.id, item.approved)}
           >
-            <Text style={styles.buttonText}>{item.approved ? 'Onayı Kaldır' : 'Onayla'}</Text>
+            <Text style={styles.btnText}>{item.approved ? 'Onayı Kaldır' : 'Onayla'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: 'red' }]}
+            style={[styles.btn, { backgroundColor: colors.danger }]}
             onPress={() => deleteReport(item.id, item.storagePath)}
           >
-            <Text style={styles.buttonText}>Sil</Text>
+            <Text style={styles.btnText}>Sil</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -243,7 +256,12 @@ export default function AdminReportsScreen({ onBack }) {
   };
 
   if (loading) {
-    return <ActivityIndicator size="large" style={{ marginTop: 50 }} />;
+    return (
+      <SafeAreaView style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 8, color: colors.textMuted }}>Raporlar yükleniyor…</Text>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -252,43 +270,48 @@ export default function AdminReportsScreen({ onBack }) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {onBack && (
-            <TouchableOpacity onPress={onBack} style={styles.backButton}>
-              <Text style={styles.backText}>←</Text>
+            <TouchableOpacity onPress={onBack} style={styles.back}>
+              <Text style={styles.backTxt}>←</Text>
             </TouchableOpacity>
           )}
-          <Text style={styles.headerTitle}>Admin – Raporlar (Test Modu)</Text>
+          <View>
+            <Text style={styles.headerTitle}>Demirören – Admin</Text>
+            <Text style={styles.headerSub}>Rapor Moderasyonu</Text>
+          </View>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.diagBtn} onPress={onRefresh}>
-            <Text style={styles.diagBtnText}>Yenile</Text>
+          <TouchableOpacity style={styles.refresh} onPress={onRefresh}>
+            <Text style={styles.refreshTxt}>Yenile</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Durum Çizgisi */}
+      {/* Status */}
       <View style={styles.diagRow}>
         <Text style={styles.diagText} numberOfLines={2}>
           {`Kayıt: ${reports.length} • Mod: ${diagnostic.mode}${diagnostic.lastError ? ` • Hata: ${diagnostic.lastError}` : ''}`}
         </Text>
       </View>
 
-      {/* Sekmeler */}
-      <View style={styles.tabs}>
-        {TABS.map((t) => {
-          const active = t.key === tab;
-          return (
-            <TouchableOpacity
-              key={t.key}
-              onPress={() => setTab(t.key)}
-              style={[styles.tab, active && styles.tabActive]}
-            >
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>{t.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Segmented Tabs */}
+      <View style={styles.tabsWrap}>
+        <View style={styles.tabs}>
+          {TABS.map((t) => {
+            const active = t.key === tab;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => setTab(t.key)}
+                style={[styles.tab, active && styles.tabActive]}
+              >
+                <Text style={[styles.tabTxt, active && styles.tabTxtActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
-      {/* Liste */}
+      {/* List */}
       <FlatList
         data={reports}
         key={numColumns}
@@ -297,19 +320,22 @@ export default function AdminReportsScreen({ onBack }) {
         renderItem={renderItem}
         contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingBottom: 24, paddingTop: 12 }}
         ItemSeparatorComponent={() => <View style={{ height: gap }} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            progressBackgroundColor={colors.placeholder}
+            colors={[colors.primary]}
+          />
+        }
         ListEmptyComponent={emptyText ? <Text style={styles.empty}>{emptyText}</Text> : null}
       />
 
-      {/* Tam ekran Önizleme Modal */}
-      <Modal
-        visible={previewOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPreviewOpen(false)}
-      >
+      {/* Preview Modal */}
+      <Modal visible={previewOpen} transparent animationType="fade" onRequestClose={() => setPreviewOpen(false)}>
         <View style={styles.previewBackdrop}>
-          <View style={[styles.previewHeader, { paddingTop: insets.top + 6 }]}>
+          <View style={styles.previewTop}>
             <TouchableOpacity onPress={() => setPreviewOpen(false)} style={styles.previewClose}>
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Kapat</Text>
             </TouchableOpacity>
@@ -318,15 +344,15 @@ export default function AdminReportsScreen({ onBack }) {
               <View style={styles.previewActions}>
                 <TouchableOpacity
                   onPress={() => approveToggle(previewItem.id, previewItem.approved)}
-                  style={[styles.pill, { backgroundColor: previewItem.approved ? '#E67E22' : '#10B981' }]}
+                  style={[styles.pill, { backgroundColor: previewItem.approved ? '#E67E22' : colors.ok }]}
                 >
-                  <Text style={styles.pillText}>{previewItem.approved ? 'Onayı Kaldır' : 'Onayla'}</Text>
+                  <Text style={styles.pillTxt}>{previewItem.approved ? 'Onayı Kaldır' : 'Onayla'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => deleteReport(previewItem.id, previewItem.storagePath)}
-                  style={[styles.pill, { backgroundColor: '#EF4444' }]}
+                  style={[styles.pill, { backgroundColor: colors.danger }]}
                 >
-                  <Text style={styles.pillText}>Sil</Text>
+                  <Text style={styles.pillTxt}>Sil</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -336,12 +362,7 @@ export default function AdminReportsScreen({ onBack }) {
             {!previewUri ? (
               <ActivityIndicator size="large" color="#fff" />
             ) : previewItem?.mediaType === 'video' ? (
-              <Video
-                source={{ uri: previewUri }}
-                style={styles.previewMedia}
-                useNativeControls
-                resizeMode="contain"
-              />
+              <Video source={{ uri: previewUri }} style={styles.previewMedia} useNativeControls resizeMode="contain" />
             ) : (
               <Image source={{ uri: previewUri }} style={styles.previewMedia} resizeMode="contain" />
             )}
@@ -365,7 +386,7 @@ function AsyncImage({ item, ensureUrl }) {
   if (!uri) {
     return (
       <View style={[styles.media, styles.mediaPlaceholder]}>
-        <Text style={{ color: '#6b7280' }}>Görsel yok</Text>
+        <Text style={{ color: colors.textMuted }}>Görsel yok</Text>
       </View>
     );
   }
@@ -385,7 +406,7 @@ function AsyncVideo({ item, ensureUrl }) {
   if (!uri) {
     return (
       <View style={[styles.media, styles.mediaPlaceholder]}>
-        <Text style={{ color: '#6b7280' }}>Video yok</Text>
+        <Text style={{ color: colors.textMuted }}>Video yok</Text>
       </View>
     );
   }
@@ -393,80 +414,112 @@ function AsyncVideo({ item, ensureUrl }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f5f7fb' },
+  root: { flex: 1, backgroundColor: colors.bg },
 
+  // Header
   header: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
+    paddingVertical: 10,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginLeft: 6 },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
+  headerSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  back: {
+    width: 36, height: 36, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center'
+  },
+  backTxt: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  refresh: {
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    backgroundColor: colors.primary
+  },
+  refreshTxt: { color: '#fff', fontWeight: '800', fontSize: 12 },
 
-  backButton: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#e5e7eb', borderRadius: 8 },
-  backText: { fontSize: 16, color: '#111827' },
-
+  // Status bar
   diagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#eef2ff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#c7d2fe',
+    backgroundColor: colors.cardMuted,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  diagText: { color: '#1e3a8a', fontSize: 12, flex: 1 },
+  diagText: { color: colors.textMuted, fontSize: 12, flex: 1 },
 
-  diagBtn: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#4f46e5', borderRadius: 8 },
-  diagBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-
+  // Tabs (segmented)
+  tabsWrap: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 6,
+    backgroundColor: colors.bg,
+  },
   tabs: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
-  tab: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  tabActive: { backgroundColor: '#e8f0fe' },
-  tabText: { color: '#6b7280', fontWeight: '600' },
-  tabTextActive: { color: '#1d4ed8' },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    backgroundColor: 'transparent',
+  },
+  tabActive: { backgroundColor: colors.primary },
+  tabTxt: { color: colors.textMuted, fontWeight: '700' },
+  tabTxtActive: { color: '#fff', fontWeight: '800' },
 
-  card: { backgroundColor: '#fff', padding: 12, borderRadius: 10, elevation: 1 },
-  desc: { fontSize: 16, fontWeight: '500', marginBottom: 8, color: '#111827' },
-  media: { width: '100%', aspectRatio: 16 / 9, borderRadius: 8, backgroundColor: '#ddd' },
+  // Cards
+  card: {
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  desc: { fontSize: 15, fontWeight: '700', marginBottom: 8, color: colors.text },
+  media: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: colors.placeholder },
   mediaPlaceholder: { alignItems: 'center', justifyContent: 'center' },
 
-  link: { color: '#1d4ed8', marginTop: 8, textDecorationLine: 'underline' },
+  link: { color: colors.info, marginTop: 8, textDecorationLine: 'underline' },
 
-  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  meta: { color: '#6b7280', fontSize: 12, flexShrink: 1 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, color: '#fff', overflow: 'hidden', fontSize: 12, fontWeight: '700' },
-  badgeOk: { backgroundColor: '#10B981' },
-  badgePending: { backgroundColor: '#F59E0B' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  meta: { color: colors.textMuted, fontSize: 12, flexShrink: 1 },
+  badge: {
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 6, color: '#fff', overflow: 'hidden', fontSize: 12, fontWeight: '800'
+  },
+  badgeOk: { backgroundColor: colors.ok },
+  badgePending: { backgroundColor: colors.warn },
 
-  actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, gap: 10 },
-  button: { flex: 1, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: '700' },
+  actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 10 },
+  btn: { flex: 1, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' },
+  btnText: { color: '#fff', fontWeight: '800' },
 
-  empty: { textAlign: 'center', marginTop: 40, color: '#6b7280' },
+  empty: { textAlign: 'center', marginTop: 40, color: colors.textMuted },
 
   // Preview modal
   previewBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)' },
-  previewHeader: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, justifyContent: 'space-between',
+  previewTop: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12, paddingTop: 14, paddingBottom: 8
   },
-  previewClose: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)' },
+  previewClose: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.14)' },
   previewActions: { flexDirection: 'row', gap: 8 },
   pill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 },
-  pillText: { color: '#fff', fontWeight: '700' },
+  pillTxt: { color: '#fff', fontWeight: '800' },
   previewBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   previewMedia: { width: '100%', height: '100%' },
 });

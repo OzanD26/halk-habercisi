@@ -1,4 +1,3 @@
-
 // screens/NewsScreen.js
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
@@ -7,27 +6,37 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const API_KEY = 'pub_fbfef3c3f2bf4b0badd612c674014946'; // newsdata.io key'in
-// KATEGORİ örneği: category=top,politics,sports (virgülle ayrılır)
-// Daha fazla parametre: q=, from_date=, to_date=, etc.
+const API_KEY = 'pub_fbfef3c3f2bf4b0badd612c674014946'; // newsdata.io key
 const BASE = 'https://newsdata.io/api/1/news';
+
+// --- Dark tema renkleri (ReportScreen koyu tema ile aynı)
+const colors = {
+  bg: '#0E0F12',
+  card: '#16181D',
+  border: '#2A2D34',
+  text: '#E6E8EA',
+  textMuted: '#A5ABB3',
+  outline: '#2F333B',
+  primary: '#E30613',
+  placeholder: '#0F1116',
+};
 
 export default function NewsScreen() {
   const [items, setItems] = useState([]);
   const [nextPage, setNextPage] = useState(null);
-  const [loading, setLoading] = useState(true);       // ilk yükleme
-  const [loadingMore, setLoadingMore] = useState(false); // sayfa ekleme
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const loadingRef = useRef(false); // ardışık istekleri engelle
+  const loadingRef = useRef(false);
 
   const buildUrl = (page = null) => {
     const params = new URLSearchParams({
       apikey: API_KEY,
       country: 'tr',
       language: 'tr',
-      // category: 'top', // istersen aç
-      // q: 'deprem',     // anahtar kelime araması için örnek
+      // category: 'top,technology', // istersen aç
+      // q: 'deprem',                 // istersen arama
     });
     if (page) params.append('page', page);
     return `${BASE}?${params.toString()}`;
@@ -43,20 +52,15 @@ export default function NewsScreen() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
 
-      // newsdata.io yanıt yapısı: { status, totalResults, results: [...], nextPage }
       const results = Array.isArray(json?.results) ? json.results : [];
-
-      const mapped = results.map((it) => {
-        // Alan örnekleri: title, link, pubDate, source_id, image_url, description, content
-        return {
-          title: it.title || 'Başlık yok',
-          url: it.link || it.url,
-          publishedAt: it.pubDate ? new Date(it.pubDate) : null,
-          source: it.source_id || 'Kaynak',
-          image: it.image_url || null,
-          description: it.description || '',
-        };
-      });
+      const mapped = results.map((it) => ({
+        title: it.title || 'Başlık yok',
+        url: it.link || it.url,
+        publishedAt: it.pubDate ? new Date(it.pubDate) : null,
+        source: it.source_id || 'Kaynak',
+        image: it.image_url || null,
+        description: it.description || '',
+      }));
 
       setNextPage(json?.nextPage || null);
 
@@ -94,14 +98,23 @@ export default function NewsScreen() {
   const renderItem = ({ item }) => {
     const time = item.publishedAt ? item.publishedAt.toLocaleString() : '';
     return (
-      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => item.url && Linking.openURL(item.url)}>
-        {item.image
-          ? <Image source={{ uri: item.image }} style={styles.thumb} />
-          : <View style={[styles.thumb, styles.thumbPlaceholder]} />
-        }
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.9}
+        onPress={() => item.url && Linking.openURL(item.url)}
+      >
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.thumb} />
+        ) : (
+          <View style={[styles.thumb, styles.thumbPlaceholder]}>
+            <Text style={styles.thumbPlaceholderIcon}>📰</Text>
+          </View>
+        )}
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-          <Text style={styles.meta} numberOfLines={1}>{item.source} {time ? `• ${time}` : ''}</Text>
+          <Text style={styles.meta} numberOfLines={1}>
+            {item.source}{time ? ` • ${time}` : ''}
+          </Text>
           <Text style={styles.desc} numberOfLines={3}>{item.description}</Text>
         </View>
       </TouchableOpacity>
@@ -112,7 +125,7 @@ export default function NewsScreen() {
     if (!loadingMore) return null;
     return (
       <View style={{ paddingVertical: 16 }}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   };
@@ -120,8 +133,8 @@ export default function NewsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 8, color: '#64748b' }}>Haberler yükleniyor...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 8, color: colors.textMuted }}>Haberler yükleniyor...</Text>
       </SafeAreaView>
     );
   }
@@ -133,7 +146,16 @@ export default function NewsScreen() {
         data={items}
         keyExtractor={(item, idx) => item.url || String(idx)}
         renderItem={renderItem}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            titleColor={colors.textMuted}
+            progressBackgroundColor={colors.placeholder}
+            colors={[colors.primary]}
+          />
+        }
         contentContainerStyle={{ padding: 12 }}
         ListEmptyComponent={<Text style={styles.empty}>Haber bulunamadı.</Text>}
         onEndReachedThreshold={0.6}
@@ -145,15 +167,33 @@ export default function NewsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f8fafc' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
-  error: { color: '#ef4444', textAlign: 'center', marginTop: 10 },
-  empty: { textAlign: 'center', marginTop: 40, color: '#64748b' },
+  root: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
 
-  card: { flexDirection: 'row', gap: 10, backgroundColor: '#fff', borderRadius: 12, padding: 10, marginBottom: 10, elevation: 1 },
-  thumb: { width: 100, height: 80, borderRadius: 10, backgroundColor: '#e2e8f0' },
+  error: { color: colors.primary, textAlign: 'center', marginTop: 10 },
+  empty: { textAlign: 'center', marginTop: 40, color: colors.textMuted },
+
+  card: {
+    flexDirection: 'row',
+    gap: 10,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+
+  thumb: {
+    width: 100,
+    height: 80,
+    borderRadius: 10,
+    backgroundColor: colors.placeholder,
+  },
   thumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  title: { fontWeight: '700', fontSize: 16, color: '#0f172a' },
-  meta: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  desc: { fontSize: 13, color: '#334155', marginTop: 6 },
+  thumbPlaceholderIcon: { fontSize: 20, color: colors.textMuted },
+
+  title: { fontWeight: '800', fontSize: 16, color: colors.text },
+  meta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  desc: { fontSize: 13, color: colors.text, opacity: 0.85, marginTop: 6 },
 });
